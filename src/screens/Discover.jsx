@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import NavBar from '../components/NavBar.jsx';
 
 const styleFilters = [
   'All Styles', 'Japanese', 'Blackwork', 'Realism',
@@ -48,20 +49,16 @@ function Discover({ setScreen, setSelectedArtist, ClientTabBar }) {
 
   function handleArtistClick(artist) {
     if (setSelectedArtist) {
-      setSelectedArtist({
-        ...artist,
-        id: artist.id,
-      });
+      setSelectedArtist({ ...artist, id: artist.id });
     }
     setScreen('profile');
   }
 
   return (
     <div className="page">
-      <div className="nav">
-        <div className="nav-logo">Tattoo<span>Spot</span></div>
+      <NavBar rightButton={
         <button className="back-btn" onClick={() => setScreen('splash')}>← Exit</button>
-      </div>
+      } />
 
       <div className="content">
         <div className="section-header">
@@ -115,11 +112,7 @@ function Discover({ setScreen, setSelectedArtist, ClientTabBar }) {
                   <img
                     src={artist.portfolioPhotos[0]}
                     alt={artist.name}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <div className="mock-tattoo">{artist.emoji}</div>
@@ -140,9 +133,7 @@ function Discover({ setScreen, setSelectedArtist, ClientTabBar }) {
                   ))}
                 </div>
                 <div className="artist-meta">
-                  <div className="artist-rate">
-                    From <strong>{artist.rate}</strong>
-                  </div>
+                  <div className="artist-rate">From <strong>{artist.rate}</strong></div>
                   <div className="artist-rating">
                     ⭐ {artist.rating || 'New'}{' '}
                     {artist.reviews > 0 && (
@@ -156,10 +147,7 @@ function Discover({ setScreen, setSelectedArtist, ClientTabBar }) {
                     <strong>{artist.match}%</strong>
                   </div>
                   <div className="match-track">
-                    <div
-                      className="match-fill"
-                      style={{ width: `${artist.match}%` }}
-                    ></div>
+                    <div className="match-fill" style={{ width: `${artist.match}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -167,7 +155,6 @@ function Discover({ setScreen, setSelectedArtist, ClientTabBar }) {
           ))
         )}
       </div>
-
       {ClientTabBar && <ClientTabBar activeTab="discover" />}
     </div>
   );

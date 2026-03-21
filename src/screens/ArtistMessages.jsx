@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
+import NavBar from '../components/NavBar.jsx';
 
 function ArtistMessages({ setScreen, setSelectedClient }) {
   const [clients, setClients] = useState([]);
@@ -22,18 +23,13 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
 
         allUsers.forEach(client => {
           const chatId = [user.uid, client.id].sort().join('_');
-
           const messagesRef = collection(db, 'chats', chatId, 'messages');
           const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(1));
 
           onSnapshot(q, async (snapshot) => {
             if (!snapshot.empty) {
               const lastMsg = snapshot.docs[0].data();
-
-              setLastMessageMap(prev => ({
-                ...prev,
-                [client.id]: lastMsg,
-              }));
+              setLastMessageMap(prev => ({ ...prev, [client.id]: lastMsg }));
 
               const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
               const readSnap = await getDoc(readRef);
@@ -53,7 +49,6 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
             }
           });
         });
-
       } catch (err) {
         console.error('Error loading clients:', err);
       }
@@ -74,10 +69,7 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
       });
       setUnreadMap(prev => ({ ...prev, [client.id]: false }));
     }
-
-    if (setSelectedClient) {
-      setSelectedClient(client);
-    }
+    if (setSelectedClient) setSelectedClient(client);
     setScreen('artistChat');
   }
 
@@ -89,7 +81,6 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
@@ -98,14 +89,11 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
 
   return (
     <div className="page">
-
-      <div className="nav">
-        <div className="nav-logo">Tattoo<span>Spot</span></div>
+      <NavBar leftButton={
         <button className="back-btn" onClick={() => setScreen('dashboard')}>← Back</button>
-      </div>
+      } />
 
       <div className="content" style={{ padding: '20px 20px 100px' }}>
-
         <div className="section-header">
           <h2 className="page-title">Messages</h2>
           <p className="page-sub">Conversations with clients</p>
@@ -129,20 +117,12 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
           {clients.map(client => {
             const isUnread = unreadMap[client.id];
             const lastMessage = lastMessageMap[client.id];
-
             return (
-              <div
-                key={client.id}
-                className="convo-item"
-                onClick={() => handleClientClick(client)}
-              >
-                {/* AVATAR */}
+              <div key={client.id} className="convo-item" onClick={() => handleClientClick(client)}>
                 <div className="convo-avatar">
                   👤
                   {isUnread && <div className="convo-dot"></div>}
                 </div>
-
-                {/* INFO */}
                 <div className="convo-info">
                   <div className="convo-name" style={{
                     fontWeight: isUnread ? '700' : '500',
@@ -154,33 +134,19 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
                     fontWeight: isUnread ? '600' : '400',
                     color: isUnread ? '#0a0a0a' : '#8a8580',
                   }}>
-                    {lastMessage
-                      ? lastMessage.text
-                      : 'Tap to view conversation'
-                    }
+                    {lastMessage ? lastMessage.text : 'Tap to view conversation'}
                   </div>
                 </div>
-
-                {/* TIME */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                  <div className="convo-time">
-                    {lastMessage ? formatTime(lastMessage.createdAt) : ''}
-                  </div>
+                  <div className="convo-time">{lastMessage ? formatTime(lastMessage.createdAt) : ''}</div>
                   {isUnread && (
-                    <div style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      background: '#c84b2f',
-                    }}></div>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#c84b2f' }}></div>
                   )}
                 </div>
-
               </div>
             );
           })}
         </div>
-
       </div>
 
       <div className="tab-bar">
@@ -196,12 +162,11 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
           <span className="tab-icon">💬</span>
           <span className="tab-label">Messages</span>
         </button>
-        <button className="tab-item">
+        <button className="tab-item" onClick={() => setScreen('artistBookings')}>
           <span className="tab-icon">📅</span>
-          <span className="tab-label">Schedule</span>
+          <span className="tab-label">Bookings</span>
         </button>
       </div>
-
     </div>
   );
 }

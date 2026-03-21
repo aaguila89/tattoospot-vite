@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
+import NavBar from '../components/NavBar.jsx';
 
 function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
   const [conversations, setConversations] = useState([]);
@@ -12,10 +13,7 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
     async function loadConversations() {
       try {
         const snapshot = await getDocs(collection(db, 'artists'));
-        const artists = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const artists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setConversations(artists);
 
         const user = auth.currentUser;
@@ -29,10 +27,7 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
           onSnapshot(q, async (snapshot) => {
             if (!snapshot.empty) {
               const lastMsg = snapshot.docs[0].data();
-              setLastMessageMap(prev => ({
-                ...prev,
-                [artist.id]: lastMsg,
-              }));
+              setLastMessageMap(prev => ({ ...prev, [artist.id]: lastMsg }));
 
               const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
               const readSnap = await getDoc(readRef);
@@ -52,7 +47,6 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
             }
           });
         });
-
       } catch (err) {
         console.error('Error loading conversations:', err);
       }
@@ -73,12 +67,8 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
       });
       setUnreadMap(prev => ({ ...prev, [artist.id]: false }));
     }
-
     if (setSelectedArtist) {
-      setSelectedArtist({
-        ...artist,
-        id: artist.id,
-      });
+      setSelectedArtist({ ...artist, id: artist.id });
     }
     setScreen('chat');
   }
@@ -91,7 +81,6 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
@@ -100,14 +89,11 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
 
   return (
     <div className="page">
-
-      <div className="nav">
-        <div className="nav-logo">Tattoo<span>Spot</span></div>
+      <NavBar rightButton={
         <button className="back-btn" onClick={() => setScreen('discover')}>← Back</button>
-      </div>
+      } />
 
       <div className="content" style={{ padding: '20px 20px 100px' }}>
-
         <div className="section-header">
           <h2 className="page-title">Messages</h2>
           <p className="page-sub">Your conversations</p>
@@ -131,18 +117,12 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
           {conversations.map(artist => {
             const isUnread = unreadMap[artist.id];
             const lastMessage = lastMessageMap[artist.id];
-
             return (
-              <div
-                key={artist.id}
-                className="convo-item"
-                onClick={() => handleConvoClick(artist)}
-              >
+              <div key={artist.id} className="convo-item" onClick={() => handleConvoClick(artist)}>
                 <div className="convo-avatar">
                   🎨
                   {isUnread && <div className="convo-dot"></div>}
                 </div>
-
                 <div className="convo-info">
                   <div className="convo-name" style={{
                     fontWeight: isUnread ? '700' : '500',
@@ -154,38 +134,21 @@ function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
                     fontWeight: isUnread ? '600' : '400',
                     color: isUnread ? '#0a0a0a' : '#8a8580',
                   }}>
-                    {lastMessage
-                      ? lastMessage.text
-                      : artist.styles
-                        ? artist.styles.join(', ')
-                        : 'Tap to start a conversation'
-                    }
+                    {lastMessage ? lastMessage.text : artist.styles ? artist.styles.join(', ') : 'Tap to start a conversation'}
                   </div>
                 </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                  <div className="convo-time">
-                    {lastMessage ? formatTime(lastMessage.createdAt) : ''}
-                  </div>
+                  <div className="convo-time">{lastMessage ? formatTime(lastMessage.createdAt) : ''}</div>
                   {isUnread && (
-                    <div style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      background: '#c84b2f',
-                    }}></div>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#c84b2f' }}></div>
                   )}
                 </div>
-
               </div>
             );
           })}
         </div>
-
       </div>
-
       {ClientTabBar && <ClientTabBar activeTab="messages" />}
-
     </div>
   );
 }

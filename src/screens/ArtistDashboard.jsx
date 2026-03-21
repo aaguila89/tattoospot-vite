@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  updateDoc
-} from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
 function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
   const [requests, setRequests] = useState([]);
@@ -25,10 +18,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const bookings = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setRequests(bookings);
       setLoading(false);
     });
@@ -38,9 +28,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
   async function handleAccept(id) {
     try {
-      await updateDoc(doc(db, 'bookings', id), {
-        status: 'accepted'
-      });
+      await updateDoc(doc(db, 'bookings', id), { status: 'accepted' });
     } catch (err) {
       console.error('Error accepting booking:', err);
     }
@@ -48,9 +36,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
   async function handleDecline(id) {
     try {
-      await updateDoc(doc(db, 'bookings', id), {
-        status: 'declined'
-      });
+      await updateDoc(doc(db, 'bookings', id), { status: 'declined' });
     } catch (err) {
       console.error('Error declining booking:', err);
     }
@@ -70,9 +56,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
       <div className="dash-header">
         <div className="dash-greeting">Welcome back</div>
-        <div className="dash-name">
-          {auth.currentUser?.displayName || 'Artist'} 🎨
-        </div>
+        <div className="dash-name">{auth.currentUser?.displayName || 'Artist'} 🎨</div>
         <button
           onClick={handleSignOut}
           style={{
@@ -95,41 +79,26 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
             <div className="dash-stat-lbl">Pending</div>
           </div>
           <div className="dash-stat">
-            <div className="dash-stat-val">
-              <button
-                onClick={() => setScreen('artistBookings')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#f5f0e8',
-                  fontSize: '22px',
-                  fontWeight: '900',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  padding: '0',
-                }}
-              >
-                📋
-              </button>
-            </div>
+            <div className="dash-stat-val"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setScreen('artistBookings')}
+            >📋</div>
             <div className="dash-stat-lbl">All Bookings</div>
           </div>
           <div className="dash-stat">
-            <div className="dash-stat-val">💬</div>
+            <div className="dash-stat-val"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setScreen('artistMessages')}
+            >💬</div>
             <div className="dash-stat-lbl">Messages</div>
           </div>
         </div>
       </div>
 
       <div className="content" style={{ paddingTop: '20px' }}>
-
         <div className="section-header">
-          <h2 className="page-title" style={{ fontSize: '20px' }}>
-            New Requests
-          </h2>
-          <p className="page-sub">
-            {loading ? 'Loading...' : `${requests.length} pending requests`}
-          </p>
+          <h2 className="page-title" style={{ fontSize: '20px' }}>New Requests</h2>
+          <p className="page-sub">{loading ? 'Loading...' : `${requests.length} pending requests`}</p>
         </div>
 
         {loading && (
@@ -152,39 +121,20 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
               <div className="request-avatar">👤</div>
               <div className="request-info">
                 <div className="request-name">{request.clientName}</div>
-                <div className="request-style">
-                  {request.style} · {request.placement}
-                </div>
+                <div className="request-style">{request.style} · {request.placement}</div>
               </div>
-              <div className="request-time">
-                {new Date(request.createdAt).toLocaleDateString()}
-              </div>
+              <div className="request-time">{new Date(request.createdAt).toLocaleDateString()}</div>
             </div>
-
             <div className="request-desc">
               📅 {request.date} at {request.time} · {request.duration}
-              {request.description && (
-                <div style={{ marginTop: '6px' }}>{request.description}</div>
-              )}
+              {request.description && <div style={{ marginTop: '6px' }}>{request.description}</div>}
             </div>
-
             <div className="request-actions">
-              <button
-                className="req-btn req-btn-accept"
-                onClick={() => handleAccept(request.id)}
-              >
-                ✓ Accept
-              </button>
-              <button
-                className="req-btn req-btn-decline"
-                onClick={() => handleDecline(request.id)}
-              >
-                ✗ Decline
-              </button>
+              <button className="req-btn req-btn-accept" onClick={() => handleAccept(request.id)}>✓ Accept</button>
+              <button className="req-btn req-btn-decline" onClick={() => handleDecline(request.id)}>✗ Decline</button>
             </div>
           </div>
         ))}
-
       </div>
 
       <div className="tab-bar">
@@ -205,7 +155,6 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
           <span className="tab-label">Bookings</span>
         </button>
       </div>
-
     </div>
   );
 }
