@@ -23,7 +23,10 @@ function App() {
   );
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [selectedArtist, setSelectedArtistState] = useState(() => {
+    const saved = sessionStorage.getItem('selectedArtist');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [selectedClient, setSelectedClient] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(0);
@@ -33,22 +36,31 @@ function App() {
     setScreenState(newScreen);
   }
 
+  function setSelectedArtist(artist) {
+    setSelectedArtistState(artist);
+    if (artist) {
+      sessionStorage.setItem('selectedArtist', JSON.stringify(artist));
+    } else {
+      sessionStorage.removeItem('selectedArtist');
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
       if (!currentUser) {
-        setSelectedArtist(null);
+        setSelectedArtistState(null);
         setSelectedClient(null);
         setUnreadMessages(0);
         setPendingBookings(0);
         sessionStorage.removeItem('currentScreen');
+        sessionStorage.removeItem('selectedArtist');
         setScreenState('splash');
       } else {
         loadUnreadCounts(currentUser);
         const savedScreen = sessionStorage.getItem('currentScreen');
         if (!savedScreen || savedScreen === 'splash' || savedScreen === 'login') {
-          // Redirect based on role
           getDoc(doc(db, 'users', currentUser.uid)).then(userDoc => {
             if (userDoc.exists() && userDoc.data().role === 'artist') {
               setScreen('dashboard');
@@ -101,11 +113,12 @@ function App() {
   }
 
   function handleSignOut() {
-    setSelectedArtist(null);
+    setSelectedArtistState(null);
     setSelectedClient(null);
     setUnreadMessages(0);
     setPendingBookings(0);
     sessionStorage.removeItem('currentScreen');
+    sessionStorage.removeItem('selectedArtist');
     signOut(auth);
     setScreenState('splash');
   }
@@ -214,7 +227,7 @@ function App() {
             <div className="role-card" onClick={() => setScreen('login')}>
               <div className="role-icon">🎨</div>
               <div className="role-label">I'm an Artist</div>
-              <div className="role-sub">Showcase my work</div>
+              <div className="role-sub">Showcase my work</app>
             </div>
           </div>
           <div className="auth-switch" style={{ marginTop: '24px' }}>
