@@ -11,11 +11,29 @@ function Confirmation({ setScreen }) {
   return (
     <div className="page">
 
-      <div className="nav">
-        <div className="nav-logo">Tattoo<span>Spot</span></div>
+      {/* NAV - Centered with tagline */}
+      <div className="nav" style={{
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '16px 20px 12px',
+        gap: '2px',
+      }}>
+        <div className="nav-logo" style={{ fontSize: '24px' }}>
+          Tattoo<span>Spot</span>
+        </div>
+        <p style={{
+          fontSize: '11px',
+          color: '#8a8580',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+          margin: '0',
+        }}>
+          Where Ink Meets Skin
+        </p>
       </div>
 
       <div className="content">
+
         <div className="confirm-hero">
           <div className="confirm-icon">🎉</div>
           <div className="confirm-title">Request Sent!</div>
@@ -88,9 +106,16 @@ function Confirmation({ setScreen }) {
         </button>
         <button
           className="btn btn-secondary"
+          style={{ marginBottom: '10px' }}
           onClick={() => setScreen('discover')}
         >
           🔍 Back to Discover
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setScreen('profile')}
+        >
+          ← Back to Profile
         </button>
 
       </div>
