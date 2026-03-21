@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 
 const dates = [
   { day: 'THU', num: '20' },
@@ -14,7 +14,7 @@ const times = [
   '4:00 PM', '6:00 PM', '8:00 PM'
 ];
 
-function Booking({ setScreen, artistId, artistName }) {
+function Booking({ setScreen, artistId, artistName, artist }) {
   const [selectedDate, setSelectedDate] = useState('21');
   const [selectedTime, setSelectedTime] = useState('12:00 PM');
   const [style, setStyle] = useState('Japanese / Irezumi');
@@ -23,8 +23,45 @@ function Booking({ setScreen, artistId, artistName }) {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [minDeposit, setMinDeposit] = useState(100);
+  const [selectedDeposit, setSelectedDeposit] = useState(null);
+  const [customDeposit, setCustomDeposit] = useState('');
+  const [useCustom, setUseCustom] = useState(false);
+
+  useEffect(() => {
+    async function loadArtistDeposit() {
+      try {
+        if (artistId && !artistId.startsWith('placeholder')) {
+          const docSnap = await getDoc(doc(db, 'artists', artistId));
+          if (docSnap.exists()) {
+            const min = docSnap.data().minDeposit || 100;
+            setMinDeposit(min);
+            setSelectedDeposit(min);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading deposit:', err);
+      }
+    }
+    loadArtistDeposit();
+  }, [artistId]);
+
+  const depositOptions = [
+    minDeposit,
+    minDeposit + 50,
+    minDeposit + 100,
+    minDeposit + 150,
+  ];
+
+  const finalDeposit = useCustom
+    ? parseInt(customDeposit) || 0
+    : selectedDeposit;
 
   async function handleSubmit() {
+    if (finalDeposit < minDeposit) {
+      setError(`Minimum deposit is $${minDeposit}`);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -40,6 +77,7 @@ function Booking({ setScreen, artistId, artistName }) {
         placement,
         duration,
         description,
+        deposit: finalDeposit,
         status: 'pending',
         createdAt: new Date().toISOString(),
       });
@@ -64,7 +102,7 @@ function Booking({ setScreen, artistId, artistName }) {
 
         <div className="section-header">
           <h2 className="page-title">Book a Session</h2>
-          <p className="page-sub">With {artistName || 'Kenji Mori'} · Brooklyn, NY</p>
+          <p className="page-sub">With {artistName || 'Kenji Mori'}</p>
         </div>
 
         {error !== '' && (
@@ -106,7 +144,7 @@ function Booking({ setScreen, artistId, artistName }) {
           <label className="form-label">DESCRIBE YOUR VISION</label>
           <textarea
             className="form-textarea"
-            placeholder="Describe what you'd like — themes, size, colors, reference images..."
+            placeholder="Describe what you'd like — themes, size, colors..."
             value={description}
             onChange={e => setDescription(e.target.value)}
           />
@@ -153,6 +191,58 @@ function Booking({ setScreen, artistId, artistName }) {
           </select>
         </div>
 
+        {/* DEPOSIT SELECTOR */}
+        <label className="form-label">
+          SELECT DEPOSIT AMOUNT
+        </label>
+        <p style={{
+          fontSize: '12px',
+          color: '#8a8580',
+          marginBottom: '12px',
+          marginTop: '-4px'
+        }}>
+          {artistName || 'This artist'} requires a minimum deposit of
+          <strong style={{ color: '#c84b2f' }}> ${minDeposit}</strong>
+        </p>
+
+        <div className="time-grid" style={{ marginBottom: '12px' }}>
+          {depositOptions.map(amount => (
+            <div
+              key={amount}
+              className={`time-chip ${!useCustom && selectedDeposit === amount ? 'selected' : ''}`}
+              onClick={() => {
+                setSelectedDeposit(amount);
+                setUseCustom(false);
+              }}
+            >
+              ${amount}
+            </div>
+          ))}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">OR ENTER CUSTOM AMOUNT</label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{
+              fontSize: '16px',
+              fontWeight: '700',
+              color: '#0a0a0a'
+            }}>$</span>
+            <input
+              className="form-input"
+              type="number"
+              placeholder={`Min. $${minDeposit}`}
+              value={customDeposit}
+              onChange={e => {
+                setCustomDeposit(e.target.value);
+                setUseCustom(true);
+              }}
+              min={minDeposit}
+            />
+          </div>
+        </div>
+
+        {/* SUMMARY */}
         <div className="info-card" style={{ marginBottom: '16px' }}>
           <div className="booking-row">
             <span className="booking-row-label">Artist</span>
@@ -175,8 +265,10 @@ function Booking({ setScreen, artistId, artistName }) {
             <span className="booking-row-val">{duration}</span>
           </div>
           <div className="booking-row">
-            <span className="booking-row-label">Deposit Due</span>
-            <span className="booking-row-val" style={{ color: '#c84b2f' }}>$100</span>
+            <span className="booking-row-label">Deposit</span>
+            <span className="booking-row-val" style={{ color: '#c84b2f' }}>
+              ${finalDeposit || minDeposit}
+            </span>
           </div>
         </div>
 
@@ -188,7 +280,7 @@ function Booking({ setScreen, artistId, artistName }) {
           {loading ? 'Sending Request...' : 'Send Booking Request →'}
         </button>
         <p className="booking-note">
-          A $100 deposit will be collected upon artist approval
+          Deposit of ${finalDeposit || minDeposit} will be collected upon artist approval
         </p>
 
       </div>

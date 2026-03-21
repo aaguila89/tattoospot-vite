@@ -14,6 +14,7 @@ function ArtistSetup({ setScreen }) {
   const [location, setLocation] = useState('');
   const [rate, setRate] = useState('');
   const [experience, setExperience] = useState('');
+  const [minDeposit, setMinDeposit] = useState('100');
   const [selectedStyles, setSelectedStyles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +53,7 @@ function ArtistSetup({ setScreen }) {
         location,
         rate,
         experience,
+        minDeposit: parseInt(minDeposit) || 100,
         styles: selectedStyles,
         rating: 0,
         reviews: 0,
@@ -68,20 +70,17 @@ function ArtistSetup({ setScreen }) {
   return (
     <div className="page">
 
-      {/* NAV */}
       <div className="nav">
         <div className="nav-logo">Tattoo<span>Spot</span></div>
       </div>
 
       <div className="content">
 
-        {/* HEADER */}
         <div className="section-header">
           <h2 className="page-title">Set Up Your Profile</h2>
           <p className="page-sub">Let clients know about your work</p>
         </div>
 
-        {/* STEP INDICATOR */}
         <div className="step-indicator">
           <div className={`step-dot ${step >= 1 ? 'active' : ''}`}></div>
           <div className={`step-dot ${step >= 2 ? 'active' : ''}`}></div>
@@ -130,6 +129,26 @@ function ArtistSetup({ setScreen }) {
                 value={rate}
                 onChange={e => setRate(e.target.value)}
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">MINIMUM DEPOSIT REQUIRED ($)</label>
+              <input
+                className="form-input"
+                type="number"
+                placeholder="e.g. 100"
+                value={minDeposit}
+                onChange={e => setMinDeposit(e.target.value)}
+                min="0"
+              />
+              <p style={{
+                fontSize: '12px',
+                color: '#8a8580',
+                marginTop: '6px'
+              }}>
+                This is the minimum deposit clients must pay to book you.
+                They can choose to pay more.
+              </p>
             </div>
 
             <button
@@ -221,6 +240,10 @@ function ArtistSetup({ setScreen }) {
               <div className="booking-row">
                 <span className="booking-row-label">Rate</span>
                 <span className="booking-row-val">{rate}</span>
+              </div>
+              <div className="booking-row">
+                <span className="booking-row-label">Min. Deposit</span>
+                <span className="booking-row-val">${minDeposit}</span>
               </div>
               <div className="booking-row">
                 <span className="booking-row-label">Experience</span>
