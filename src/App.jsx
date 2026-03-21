@@ -227,7 +227,7 @@ function App() {
             <div className="role-card" onClick={() => setScreen('login')}>
               <div className="role-icon">🎨</div>
               <div className="role-label">I'm an Artist</div>
-              <div className="role-sub">Showcase my work</app>
+              <div className="role-sub">Showcase my work</div>
             </div>
           </div>
           <div className="auth-switch" style={{ marginTop: '24px' }}>
