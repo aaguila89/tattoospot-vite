@@ -18,13 +18,20 @@ import Login from './screens/Login.jsx';
 import Signup from './screens/Signup.jsx';
 
 function App() {
-  const [screen, setScreen] = useState('splash');
+  const [screen, setScreenState] = useState(
+    sessionStorage.getItem('currentScreen') || 'splash'
+  );
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(0);
+
+  function setScreen(newScreen) {
+    sessionStorage.setItem('currentScreen', newScreen);
+    setScreenState(newScreen);
+  }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -35,8 +42,21 @@ function App() {
         setSelectedClient(null);
         setUnreadMessages(0);
         setPendingBookings(0);
+        sessionStorage.removeItem('currentScreen');
+        setScreenState('splash');
       } else {
         loadUnreadCounts(currentUser);
+        const savedScreen = sessionStorage.getItem('currentScreen');
+        if (!savedScreen || savedScreen === 'splash' || savedScreen === 'login') {
+          // Redirect based on role
+          getDoc(doc(db, 'users', currentUser.uid)).then(userDoc => {
+            if (userDoc.exists() && userDoc.data().role === 'artist') {
+              setScreen('dashboard');
+            } else {
+              setScreen('discover');
+            }
+          });
+        }
       }
     });
     return () => unsubscribe();
@@ -44,7 +64,6 @@ function App() {
 
   async function loadUnreadCounts(currentUser) {
     try {
-      // Load unread messages
       const artistsSnap = await getDocs(collection(db, 'artists'));
       const artists = artistsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -69,7 +88,6 @@ function App() {
         });
       });
 
-      // Load pending bookings
       const bookingsSnap = await getDocs(collection(db, 'bookings'));
       const pending = bookingsSnap.docs
         .map(d => d.data())
@@ -87,8 +105,9 @@ function App() {
     setSelectedClient(null);
     setUnreadMessages(0);
     setPendingBookings(0);
+    sessionStorage.removeItem('currentScreen');
     signOut(auth);
-    setScreen('splash');
+    setScreenState('splash');
   }
 
   if (loading) {
@@ -100,7 +119,6 @@ function App() {
     );
   }
 
-  // Tab bar component with badges
   const ClientTabBar = ({ activeTab }) => (
     <div className="tab-bar">
       <button
