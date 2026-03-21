@@ -1,26 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
 
 function Messages({ setScreen, setSelectedArtist }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unreadMap, setUnreadMap] = useState({});
+  const [lastMessageMap, setLastMessageMap] = useState({});
 
   useEffect(() => {
     async function loadConversations() {
       try {
-        console.log('Loading artists for messages...');
         const snapshot = await getDocs(collection(db, 'artists'));
-        console.log('Artists found:', snapshot.docs.length);
-        const artists = snapshot.docs.map(doc => {
-          const data = doc.data();
-          console.log('Artist data:', data);
-          return {
-            id: doc.id, // Always use Firestore document ID
-            ...data,
-          };
-        });
+        const artists = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setConversations(artists);
+
+        // Load last message and unread status for each artist
+        const user = auth.currentUser;
+        if (!user) return;
+
+        artists.forEach(artist => {
+          const chatId = [user.uid, artist.id].sort().join('_');
+
+          // Listen for last message
+          const messagesRef = collection(db, 'chats', chatId, 'messages');
+          const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(1));
+
+          onSnapshot(q, async (snapshot) => {
+            if (!snapshot.empty) {
+              const lastMsg = snapshot.docs[0].data();
+
+              setLastMessageMap(prev => ({
+                ...prev,
+                [artist.id]: lastMsg,
+              }));
+
+              // Check if message is unread
+              const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
+              const readSnap = await getDoc(readRef);
+
+              if (!readSnap.exists()) {
+                // Never opened — mark as unread if last message is from artist
+                if (lastMsg.senderId !== user.uid) {
+                  setUnreadMap(prev => ({ ...prev, [artist.id]: true }));
+                }
+              } else {
+                const lastRead = readSnap.data().lastRead;
+                if (lastMsg.createdAt > lastRead && lastMsg.senderId !== user.uid) {
+                  setUnreadMap(prev => ({ ...prev, [artist.id]: true }));
+                } else {
+                  setUnreadMap(prev => ({ ...prev, [artist.id]: false }));
+                }
+              }
+            }
+          });
+        });
+
       } catch (err) {
         console.error('Error loading conversations:', err);
       }
@@ -29,8 +67,20 @@ function Messages({ setScreen, setSelectedArtist }) {
     loadConversations();
   }, []);
 
-  function handleConvoClick(artist) {
-    console.log('Artist clicked:', artist.name, 'doc id:', artist.id, 'uid:', artist.uid);
+  async function handleConvoClick(artist) {
+    // Mark as read
+    const user = auth.currentUser;
+    if (user) {
+      const chatId = [user.uid, artist.id].sort().join('_');
+      const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
+      await setDoc(readRef, {
+        lastRead: new Date().toISOString(),
+        userId: user.uid,
+        chatId,
+      });
+      setUnreadMap(prev => ({ ...prev, [artist.id]: false }));
+    }
+
     if (setSelectedArtist) {
       setSelectedArtist({
         ...artist,
@@ -38,6 +88,21 @@ function Messages({ setScreen, setSelectedArtist }) {
       });
     }
     setScreen('chat');
+  }
+
+  function formatTime(createdAt) {
+    if (!createdAt) return '';
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    return `${days}d`;
   }
 
   return (
@@ -70,26 +135,61 @@ function Messages({ setScreen, setSelectedArtist }) {
         )}
 
         <div className="convo-list">
-          {conversations.map(artist => (
-            <div
-              key={artist.id}
-              className="convo-item"
-              onClick={() => handleConvoClick(artist)}
-            >
-              <div className="convo-avatar">
-                🎨
-              </div>
-              <div className="convo-info">
-                <div className="convo-name">{artist.name}</div>
-                <div className="convo-preview">
-                  {artist.styles ? artist.styles.join(', ') : 'Tattoo Artist'}
+          {conversations.map(artist => {
+            const isUnread = unreadMap[artist.id];
+            const lastMessage = lastMessageMap[artist.id];
+
+            return (
+              <div
+                key={artist.id}
+                className="convo-item"
+                onClick={() => handleConvoClick(artist)}
+              >
+                {/* AVATAR */}
+                <div className="convo-avatar">
+                  🎨
+                  {isUnread && <div className="convo-dot"></div>}
                 </div>
+
+                {/* INFO */}
+                <div className="convo-info">
+                  <div className="convo-name" style={{
+                    fontWeight: isUnread ? '700' : '500',
+                    color: isUnread ? '#0a0a0a' : '#2c2c2c',
+                  }}>
+                    {artist.name}
+                  </div>
+                  <div className="convo-preview" style={{
+                    fontWeight: isUnread ? '600' : '400',
+                    color: isUnread ? '#0a0a0a' : '#8a8580',
+                  }}>
+                    {lastMessage
+                      ? lastMessage.text
+                      : artist.styles
+                        ? artist.styles.join(', ')
+                        : 'Tap to start a conversation'
+                    }
+                  </div>
+                </div>
+
+                {/* TIME */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <div className="convo-time">
+                    {lastMessage ? formatTime(lastMessage.createdAt) : ''}
+                  </div>
+                  {isUnread && (
+                    <div style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: '#c84b2f',
+                    }}></div>
+                  )}
+                </div>
+
               </div>
-              <div className="convo-time">
-                {artist.location || ''}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
       </div>

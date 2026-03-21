@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
-import { auth } from '../firebase';
+import { db, auth } from '../firebase';
+import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
 
 function ArtistMessages({ setScreen, setSelectedClient }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unreadMap, setUnreadMap] = useState({});
+  const [lastMessageMap, setLastMessageMap] = useState({});
 
   useEffect(() => {
     async function loadClients() {
@@ -15,6 +16,44 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter(user => user.id !== auth.currentUser?.uid);
         setClients(allUsers);
+
+        const user = auth.currentUser;
+        if (!user) return;
+
+        allUsers.forEach(client => {
+          const chatId = [user.uid, client.id].sort().join('_');
+
+          const messagesRef = collection(db, 'chats', chatId, 'messages');
+          const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(1));
+
+          onSnapshot(q, async (snapshot) => {
+            if (!snapshot.empty) {
+              const lastMsg = snapshot.docs[0].data();
+
+              setLastMessageMap(prev => ({
+                ...prev,
+                [client.id]: lastMsg,
+              }));
+
+              const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
+              const readSnap = await getDoc(readRef);
+
+              if (!readSnap.exists()) {
+                if (lastMsg.senderId !== user.uid) {
+                  setUnreadMap(prev => ({ ...prev, [client.id]: true }));
+                }
+              } else {
+                const lastRead = readSnap.data().lastRead;
+                if (lastMsg.createdAt > lastRead && lastMsg.senderId !== user.uid) {
+                  setUnreadMap(prev => ({ ...prev, [client.id]: true }));
+                } else {
+                  setUnreadMap(prev => ({ ...prev, [client.id]: false }));
+                }
+              }
+            }
+          });
+        });
+
       } catch (err) {
         console.error('Error loading clients:', err);
       }
@@ -23,11 +62,38 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
     loadClients();
   }, []);
 
-  function handleClientClick(client) {
+  async function handleClientClick(client) {
+    const user = auth.currentUser;
+    if (user) {
+      const chatId = [user.uid, client.id].sort().join('_');
+      const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
+      await setDoc(readRef, {
+        lastRead: new Date().toISOString(),
+        userId: user.uid,
+        chatId,
+      });
+      setUnreadMap(prev => ({ ...prev, [client.id]: false }));
+    }
+
     if (setSelectedClient) {
       setSelectedClient(client);
     }
     setScreen('artistChat');
+  }
+
+  function formatTime(createdAt) {
+    if (!createdAt) return '';
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    return `${days}d`;
   }
 
   return (
@@ -60,20 +126,59 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
         )}
 
         <div className="convo-list">
-          {clients.map(client => (
-            <div
-              key={client.id}
-              className="convo-item"
-              onClick={() => handleClientClick(client)}
-            >
-              <div className="convo-avatar">👤</div>
-              <div className="convo-info">
-                <div className="convo-name">{client.name || client.email}</div>
-                <div className="convo-preview">Tap to view conversation</div>
+          {clients.map(client => {
+            const isUnread = unreadMap[client.id];
+            const lastMessage = lastMessageMap[client.id];
+
+            return (
+              <div
+                key={client.id}
+                className="convo-item"
+                onClick={() => handleClientClick(client)}
+              >
+                {/* AVATAR */}
+                <div className="convo-avatar">
+                  👤
+                  {isUnread && <div className="convo-dot"></div>}
+                </div>
+
+                {/* INFO */}
+                <div className="convo-info">
+                  <div className="convo-name" style={{
+                    fontWeight: isUnread ? '700' : '500',
+                    color: isUnread ? '#0a0a0a' : '#2c2c2c',
+                  }}>
+                    {client.name || client.email}
+                  </div>
+                  <div className="convo-preview" style={{
+                    fontWeight: isUnread ? '600' : '400',
+                    color: isUnread ? '#0a0a0a' : '#8a8580',
+                  }}>
+                    {lastMessage
+                      ? lastMessage.text
+                      : 'Tap to view conversation'
+                    }
+                  </div>
+                </div>
+
+                {/* TIME */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <div className="convo-time">
+                    {lastMessage ? formatTime(lastMessage.createdAt) : ''}
+                  </div>
+                  {isUnread && (
+                    <div style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: '#c84b2f',
+                    }}></div>
+                  )}
+                </div>
+
               </div>
-              <div className="convo-time">Now</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
       </div>
@@ -100,5 +205,3 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
     </div>
   );
 }
-
-export default ArtistMessages;
