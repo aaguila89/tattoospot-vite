@@ -70,7 +70,7 @@ function Booking({ setScreen, artistId, artistName, artist }) {
         clientName: auth.currentUser?.displayName,
         clientEmail: auth.currentUser?.email,
         artistId: artistId || 'demo-artist',
-        artistName: artistName || 'Kenji Mori',
+        artistName: artistName || 'Artist',
         date: `Mar ${selectedDate}`,
         time: selectedTime,
         style,
@@ -81,6 +81,17 @@ function Booking({ setScreen, artistId, artistName, artist }) {
         status: 'pending',
         createdAt: new Date().toISOString(),
       });
+
+      // Pass booking details to confirmation
+      sessionStorage.setItem('lastBooking', JSON.stringify({
+        artistName: artistName || 'Artist',
+        date: `Mar ${selectedDate}`,
+        time: selectedTime,
+        style,
+        duration,
+        deposit: finalDeposit,
+      }));
+
       setScreen('confirmation');
     } catch (err) {
       console.error('Booking error:', err);
@@ -102,7 +113,7 @@ function Booking({ setScreen, artistId, artistName, artist }) {
 
         <div className="section-header">
           <h2 className="page-title">Book a Session</h2>
-          <p className="page-sub">With {artistName || 'Kenji Mori'}</p>
+          <p className="page-sub">With {artistName || 'Artist'}</p>
         </div>
 
         {error !== '' && (
@@ -191,10 +202,7 @@ function Booking({ setScreen, artistId, artistName, artist }) {
           </select>
         </div>
 
-        {/* DEPOSIT SELECTOR */}
-        <label className="form-label">
-          SELECT DEPOSIT AMOUNT
-        </label>
+        <label className="form-label">SELECT DEPOSIT AMOUNT</label>
         <p style={{
           fontSize: '12px',
           color: '#8a8580',
@@ -223,11 +231,7 @@ function Booking({ setScreen, artistId, artistName, artist }) {
         <div className="form-group">
           <label className="form-label">OR ENTER CUSTOM AMOUNT</label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{
-              fontSize: '16px',
-              fontWeight: '700',
-              color: '#0a0a0a'
-            }}>$</span>
+            <span style={{ fontSize: '16px', fontWeight: '700', color: '#0a0a0a' }}>$</span>
             <input
               className="form-input"
               type="number"
@@ -242,11 +246,10 @@ function Booking({ setScreen, artistId, artistName, artist }) {
           </div>
         </div>
 
-        {/* SUMMARY */}
         <div className="info-card" style={{ marginBottom: '16px' }}>
           <div className="booking-row">
             <span className="booking-row-label">Artist</span>
-            <span className="booking-row-val">{artistName || 'Kenji Mori'}</span>
+            <span className="booking-row-val">{artistName || 'Artist'}</span>
           </div>
           <div className="booking-row">
             <span className="booking-row-label">Date</span>
