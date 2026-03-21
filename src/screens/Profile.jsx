@@ -1,12 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 function Profile({ setScreen, artist }) {
+  const [portfolioPhotos, setPortfolioPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const name = artist?.name || 'Kenji Mori';
   const location = artist?.location || 'Brooklyn, NY';
   const styles = artist?.styles || ['Japanese', 'Neo-Traditional', 'Irezumi'];
   const rate = artist?.rate || '$180/hr';
   const rating = artist?.rating || 4.9;
   const reviews = artist?.reviews || 147;
+
+  useEffect(() => {
+    async function loadPortfolio() {
+      try {
+        if (artist?.portfolioPhotos) {
+          setPortfolioPhotos(artist.portfolioPhotos);
+          setLoading(false);
+          return;
+        }
+        if (artist?.id && !artist.id.startsWith('placeholder')) {
+          const docSnap = await getDoc(doc(db, 'artists', artist.id));
+          if (docSnap.exists()) {
+            setPortfolioPhotos(docSnap.data().portfolioPhotos || []);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading portfolio:', err);
+      }
+      setLoading(false);
+    }
+    loadPortfolio();
+  }, [artist?.id]);
 
   return (
     <div className="page">
@@ -55,14 +82,45 @@ function Profile({ setScreen, artist }) {
         <h3 className="page-title" style={{ fontSize: '16px', marginBottom: '12px' }}>
           Portfolio
         </h3>
-        <div className="portfolio-grid">
-          <div className="portfolio-item" style={{ background: '#1a1a2e' }}>🐉</div>
-          <div className="portfolio-item" style={{ background: '#0d2818' }}>🌊</div>
-          <div className="portfolio-item" style={{ background: '#2d1b00' }}>🦅</div>
-          <div className="portfolio-item" style={{ background: '#1a0a2e' }}>🌸</div>
-          <div className="portfolio-item" style={{ background: '#0a1a1a' }}>🐯</div>
-          <div className="portfolio-item" style={{ background: '#1a1a0a' }}>⛩️</div>
-        </div>
+
+        {loading ? (
+          <div className="empty-state" style={{ marginBottom: '16px' }}>
+            <div className="empty-icon">⏳</div>
+            <p>Loading portfolio...</p>
+          </div>
+        ) : portfolioPhotos.length > 0 ? (
+          <div className="portfolio-grid" style={{ marginBottom: '16px' }}>
+            {portfolioPhotos.map((photo, index) => (
+              <div
+                key={index}
+                style={{
+                  aspectRatio: '1',
+                  overflow: 'hidden',
+                  background: '#1a1a2e',
+                }}
+              >
+                <img
+                  src={photo}
+                  alt={`Portfolio ${index + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="portfolio-grid" style={{ marginBottom: '16px' }}>
+            <div className="portfolio-item" style={{ background: '#1a1a2e' }}>🐉</div>
+            <div className="portfolio-item" style={{ background: '#0d2818' }}>🌊</div>
+            <div className="portfolio-item" style={{ background: '#2d1b00' }}>🦅</div>
+            <div className="portfolio-item" style={{ background: '#1a0a2e' }}>🌸</div>
+            <div className="portfolio-item" style={{ background: '#0a1a1a' }}>🐯</div>
+            <div className="portfolio-item" style={{ background: '#1a1a0a' }}>⛩️</div>
+          </div>
+        )}
 
         <div className="info-card" style={{ marginTop: '16px' }}>
           <div className="booking-row">
@@ -75,7 +133,9 @@ function Profile({ setScreen, artist }) {
           </div>
           <div className="booking-row">
             <span className="booking-row-label">Next Available</span>
-            <span className="booking-row-val" style={{ color: '#22c55e' }}>This Friday</span>
+            <span className="booking-row-val" style={{ color: '#22c55e' }}>
+              {artist?.availability ? artist.availability[0] : 'This Friday'}
+            </span>
           </div>
           <div className="booking-row">
             <span className="booking-row-label">Deposit</span>
