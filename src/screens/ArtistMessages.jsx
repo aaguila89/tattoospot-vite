@@ -205,3 +205,5 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
     </div>
   );
 }
+
+export default ArtistMessages;
