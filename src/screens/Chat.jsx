@@ -6,10 +6,12 @@ import {
   query,
   orderBy,
   onSnapshot,
+  doc,
+  setDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-function Chat({ setScreen, artistId, artistName, artist }) {
+function Chat({ setScreen, artistId, artistName, artist, onMessageRead }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -20,14 +22,25 @@ function Chat({ setScreen, artistId, artistName, artist }) {
   const realArtistId = artistId;
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && realArtistId) {
         const id = [user.uid, realArtistId].sort().join('_');
-        console.log('Current user uid:', user.uid);
-        console.log('Artist ID:', realArtistId);
-        console.log('Chat ID:', id);
         setCurrentUserId(user.uid);
         setChatId(id);
+
+        // Mark as read when chat opens
+        try {
+          const readRef = doc(db, 'readStatus', `${user.uid}_${id}`);
+          await setDoc(readRef, {
+            lastRead: new Date().toISOString(),
+            userId: user.uid,
+            chatId: id,
+          });
+          // Tell App.jsx to clear the badge
+          if (onMessageRead) onMessageRead();
+        } catch (err) {
+          console.error('Error marking as read:', err);
+        }
       }
     });
     return () => unsubscribe();
