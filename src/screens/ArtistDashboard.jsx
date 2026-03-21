@@ -20,7 +20,8 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
     const q = query(
       collection(db, 'bookings'),
-      where('artistId', '==', user.uid)
+      where('artistId', '==', user.uid),
+      where('status', '==', 'pending')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -64,8 +65,6 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
     }
   }
 
-  const pending = requests.filter(r => r.status === 'pending').length;
-
   return (
     <div className="page">
 
@@ -92,18 +91,32 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
         </button>
         <div className="dash-stats">
           <div className="dash-stat">
-            <div className="dash-stat-val">{pending}</div>
-            <div className="dash-stat-lbl">New Requests</div>
-          </div>
-          <div className="dash-stat">
             <div className="dash-stat-val">{requests.length}</div>
-            <div className="dash-stat-lbl">Total</div>
+            <div className="dash-stat-lbl">Pending</div>
           </div>
           <div className="dash-stat">
             <div className="dash-stat-val">
-              {requests.filter(r => r.status === 'accepted').length}
+              <button
+                onClick={() => setScreen('artistBookings')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#f5f0e8',
+                  fontSize: '22px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  padding: '0',
+                }}
+              >
+                📋
+              </button>
             </div>
-            <div className="dash-stat-lbl">Accepted</div>
+            <div className="dash-stat-lbl">All Bookings</div>
+          </div>
+          <div className="dash-stat">
+            <div className="dash-stat-val">💬</div>
+            <div className="dash-stat-lbl">Messages</div>
           </div>
         </div>
       </div>
@@ -112,10 +125,10 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
         <div className="section-header">
           <h2 className="page-title" style={{ fontSize: '20px' }}>
-            Booking Requests
+            New Requests
           </h2>
           <p className="page-sub">
-            {loading ? 'Loading...' : `${pending} pending requests`}
+            {loading ? 'Loading...' : `${requests.length} pending requests`}
           </p>
         </div>
 
@@ -129,7 +142,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
         {!loading && requests.length === 0 && (
           <div className="empty-state">
             <div className="empty-icon">📅</div>
-            <p>No booking requests yet.<br />Share your profile to get started!</p>
+            <p>No pending requests.<br />Share your profile to get started!</p>
           </div>
         )}
 
@@ -155,34 +168,20 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
               )}
             </div>
 
-            {request.status === 'pending' && (
-              <div className="request-actions">
-                <button
-                  className="req-btn req-btn-accept"
-                  onClick={() => handleAccept(request.id)}
-                >
-                  ✓ Accept
-                </button>
-                <button
-                  className="req-btn req-btn-decline"
-                  onClick={() => handleDecline(request.id)}
-                >
-                  ✗ Decline
-                </button>
-              </div>
-            )}
-
-            {request.status === 'accepted' && (
-              <div className="request-status accepted">
-                ✓ Accepted — Client has been notified
-              </div>
-            )}
-
-            {request.status === 'declined' && (
-              <div className="request-status declined">
-                ✗ Declined
-              </div>
-            )}
+            <div className="request-actions">
+              <button
+                className="req-btn req-btn-accept"
+                onClick={() => handleAccept(request.id)}
+              >
+                ✓ Accept
+              </button>
+              <button
+                className="req-btn req-btn-decline"
+                onClick={() => handleDecline(request.id)}
+              >
+                ✗ Decline
+              </button>
+            </div>
           </div>
         ))}
 
@@ -201,9 +200,9 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
           <span className="tab-icon">💬</span>
           <span className="tab-label">Messages</span>
         </button>
-        <button className="tab-item">
+        <button className="tab-item" onClick={() => setScreen('artistBookings')}>
           <span className="tab-icon">📅</span>
-          <span className="tab-label">Schedule</span>
+          <span className="tab-label">Bookings</span>
         </button>
       </div>
 

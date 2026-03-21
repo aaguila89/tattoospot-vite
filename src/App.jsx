@@ -14,6 +14,7 @@ import ArtistPortfolio from './screens/ArtistPortfolio.jsx';
 import ArtistSetup from './screens/ArtistSetup.jsx';
 import ArtistMessages from './screens/ArtistMessages.jsx';
 import ArtistChat from './screens/ArtistChat.jsx';
+import ArtistBookings from './screens/ArtistBookings.jsx';
 import Login from './screens/Login.jsx';
 import Signup from './screens/Signup.jsx';
 
@@ -324,6 +325,9 @@ function App() {
           setScreen={setScreen}
           client={selectedClient}
         />
+      )}
+      {screen === 'artistBookings' && (
+        <ArtistBookings setScreen={setScreen} />
       )}
     </div>
   );
