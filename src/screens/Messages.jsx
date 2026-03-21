@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
 
-function Messages({ setScreen, setSelectedArtist }) {
+function Messages({ setScreen, setSelectedArtist, ClientTabBar }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadMap, setUnreadMap] = useState({});
@@ -18,32 +18,26 @@ function Messages({ setScreen, setSelectedArtist }) {
         }));
         setConversations(artists);
 
-        // Load last message and unread status for each artist
         const user = auth.currentUser;
         if (!user) return;
 
         artists.forEach(artist => {
           const chatId = [user.uid, artist.id].sort().join('_');
-
-          // Listen for last message
           const messagesRef = collection(db, 'chats', chatId, 'messages');
           const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(1));
 
           onSnapshot(q, async (snapshot) => {
             if (!snapshot.empty) {
               const lastMsg = snapshot.docs[0].data();
-
               setLastMessageMap(prev => ({
                 ...prev,
                 [artist.id]: lastMsg,
               }));
 
-              // Check if message is unread
               const readRef = doc(db, 'readStatus', `${user.uid}_${chatId}`);
               const readSnap = await getDoc(readRef);
 
               if (!readSnap.exists()) {
-                // Never opened — mark as unread if last message is from artist
                 if (lastMsg.senderId !== user.uid) {
                   setUnreadMap(prev => ({ ...prev, [artist.id]: true }));
                 }
@@ -68,7 +62,6 @@ function Messages({ setScreen, setSelectedArtist }) {
   }, []);
 
   async function handleConvoClick(artist) {
-    // Mark as read
     const user = auth.currentUser;
     if (user) {
       const chatId = [user.uid, artist.id].sort().join('_');
@@ -145,13 +138,11 @@ function Messages({ setScreen, setSelectedArtist }) {
                 className="convo-item"
                 onClick={() => handleConvoClick(artist)}
               >
-                {/* AVATAR */}
                 <div className="convo-avatar">
                   🎨
                   {isUnread && <div className="convo-dot"></div>}
                 </div>
 
-                {/* INFO */}
                 <div className="convo-info">
                   <div className="convo-name" style={{
                     fontWeight: isUnread ? '700' : '500',
@@ -172,7 +163,6 @@ function Messages({ setScreen, setSelectedArtist }) {
                   </div>
                 </div>
 
-                {/* TIME */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                   <div className="convo-time">
                     {lastMessage ? formatTime(lastMessage.createdAt) : ''}
@@ -194,24 +184,7 @@ function Messages({ setScreen, setSelectedArtist }) {
 
       </div>
 
-      <div className="tab-bar">
-        <button className="tab-item" onClick={() => setScreen('discover')}>
-          <span className="tab-icon">🔍</span>
-          <span className="tab-label">Discover</span>
-        </button>
-        <button className="tab-item active">
-          <span className="tab-icon">💬</span>
-          <span className="tab-label">Messages</span>
-        </button>
-        <button className="tab-item">
-          <span className="tab-icon">📅</span>
-          <span className="tab-label">Bookings</span>
-        </button>
-        <button className="tab-item">
-          <span className="tab-icon">👤</span>
-          <span className="tab-label">Profile</span>
-        </button>
-      </div>
+      {ClientTabBar && <ClientTabBar activeTab="messages" />}
 
     </div>
   );
