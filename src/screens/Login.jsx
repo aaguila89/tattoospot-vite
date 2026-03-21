@@ -3,7 +3,10 @@ import { auth, db } from '../firebase';
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -12,6 +15,7 @@ function Login({ setScreen }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   async function redirectByRole(user) {
     try {
@@ -46,6 +50,10 @@ function Login({ setScreen }) {
     setLoading(true);
     setError('');
     try {
+      await setPersistence(
+        auth,
+        rememberMe ? browserLocalPersistence : browserSessionPersistence
+      );
       const result = await signInWithEmailAndPassword(auth, email, password);
       await redirectByRole(result.user);
     } catch (err) {
@@ -58,6 +66,10 @@ function Login({ setScreen }) {
     setLoading(true);
     setError('');
     try {
+      await setPersistence(
+        auth,
+        rememberMe ? browserLocalPersistence : browserSessionPersistence
+      );
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       await redirectByRole(result.user);
@@ -105,8 +117,60 @@ function Login({ setScreen }) {
           />
         </div>
 
-        <div className="auth-forgot">
-          Forgot password?
+        {/* REMEMBER ME */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '20px',
+          marginTop: '-8px'
+        }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            color: '#2c2c2c',
+            fontWeight: '500',
+          }}>
+            <div
+              onClick={() => setRememberMe(!rememberMe)}
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                border: `2px solid ${rememberMe ? '#c84b2f' : '#d0d0d0'}`,
+                background: rememberMe ? '#c84b2f' : 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.2s',
+              }}
+            >
+              {rememberMe && (
+                <span style={{
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '700'
+                }}>✓</span>
+              )}
+            </div>
+            Remember me
+          </label>
+          <span
+            style={{
+              fontSize: '13px',
+              color: '#c84b2f',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+            onClick={() => alert('Password reset coming soon!')}
+          >
+            Forgot password?
+          </span>
         </div>
 
         <button
