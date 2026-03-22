@@ -28,7 +28,10 @@ function App() {
     const saved = sessionStorage.getItem('selectedArtist');
     return saved ? JSON.parse(saved) : null;
   });
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClient, setSelectedClientState] = useState(() => {
+    const saved = sessionStorage.getItem('selectedClient');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(0);
 
@@ -46,17 +49,27 @@ function App() {
     }
   }
 
+  function setSelectedClient(client) {
+    setSelectedClientState(client);
+    if (client) {
+      sessionStorage.setItem('selectedClient', JSON.stringify(client));
+    } else {
+      sessionStorage.removeItem('selectedClient');
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
       if (!currentUser) {
         setSelectedArtistState(null);
-        setSelectedClient(null);
+        setSelectedClientState(null);
         setUnreadMessages(0);
         setPendingBookings(0);
         sessionStorage.removeItem('currentScreen');
         sessionStorage.removeItem('selectedArtist');
+        sessionStorage.removeItem('selectedClient');
         setScreenState('splash');
       } else {
         loadUnreadCounts(currentUser);
@@ -115,11 +128,12 @@ function App() {
 
   function handleSignOut() {
     setSelectedArtistState(null);
-    setSelectedClient(null);
+    setSelectedClientState(null);
     setUnreadMessages(0);
     setPendingBookings(0);
     sessionStorage.removeItem('currentScreen');
     sessionStorage.removeItem('selectedArtist');
+    sessionStorage.removeItem('selectedClient');
     signOut(auth);
     setScreenState('splash');
   }
@@ -128,7 +142,7 @@ function App() {
     return (
       <div className="splash">
         <div className="splash-logo">Tattoo<span>Spot</span></div>
-        <p className="splash-tagline">WHERE ART MEETS SKIN</p>
+        <p className="splash-tagline">WHERE INK MEETS SKIN</p>
       </div>
     );
   }
@@ -214,7 +228,7 @@ function App() {
           <div className="splash-logo">
             Tattoo<span>Spot</span>
           </div>
-          <p className="splash-tagline">WHERE ART MEETS SKIN</p>
+          <p className="splash-tagline">WHERE INK MEETS SKIN</p>
           <div className="splash-divider"></div>
           <p className="splash-desc">
             Find the perfect tattoo artist for your vision — or grow your client base as an artist.

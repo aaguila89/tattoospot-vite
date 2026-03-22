@@ -6,6 +6,8 @@ import {
   query,
   orderBy,
   onSnapshot,
+  doc,
+  setDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -18,7 +20,7 @@ function ArtistChat({ setScreen, client }) {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user && client?.id) {
         const id = [user.uid, client.id].sort().join('_');
         console.log('Artist uid:', user.uid);
@@ -26,6 +28,19 @@ function ArtistChat({ setScreen, client }) {
         console.log('Artist Chat ID:', id);
         setCurrentUserId(user.uid);
         setChatId(id);
+
+        try {
+          const readRef = doc(db, 'readStatus', `${user.uid}_${id}`);
+          await setDoc(readRef, {
+            lastRead: new Date().toISOString(),
+            userId: user.uid,
+            chatId: id,
+          });
+        } catch (err) {
+          console.error('Error marking as read:', err);
+        }
+      } else if (!client?.id) {
+        setLoading(false);
       }
     });
     return () => unsubscribe();
@@ -62,12 +77,9 @@ function ArtistChat({ setScreen, client }) {
   }
 
   async function sendMessage() {
-    if (input.trim() === '') return;
-    if (!chatId || !currentUserId) return;
-
+    if (input.trim() === '' || !chatId || !currentUserId) return;
     const text = input;
     setInput('');
-
     try {
       await addDoc(
         collection(db, 'chats', chatId, 'messages'),
@@ -86,6 +98,29 @@ function ArtistChat({ setScreen, client }) {
 
   function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
+  }
+
+  if (!client?.id && !loading) {
+    return (
+      <div className="page">
+        <div className="nav">
+          <button className="back-btn" onClick={() => setScreen('artistMessages')}>← Back</button>
+          <div className="nav-logo">Tattoo<span>Spot</span></div>
+          <div style={{ width: '60px' }}></div>
+        </div>
+        <div className="empty-state" style={{ marginTop: '100px' }}>
+          <div className="empty-icon">💬</div>
+          <p>No conversation selected.<br />Go back and select a client.</p>
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: '20px', width: 'auto', padding: '12px 24px' }}
+            onClick={() => setScreen('artistMessages')}
+          >
+            ← Back to Messages
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
