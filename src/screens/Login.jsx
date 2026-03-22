@@ -9,13 +9,18 @@ import {
   browserSessionPersistence
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import NavBar from '../components/NavBar.jsx';
 
 function Login({ setScreen }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(
+    localStorage.getItem('rememberedEmail') || ''
+  );
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(
+    localStorage.getItem('rememberedEmail') ? true : false
+  );
 
   async function redirectByRole(user) {
     try {
@@ -49,6 +54,14 @@ function Login({ setScreen }) {
     }
     setLoading(true);
     setError('');
+
+    // Save or clear email based on Remember Me
+    if (rememberMe) {
+      localStorage.setItem('rememberedEmail', email);
+    } else {
+      localStorage.removeItem('rememberedEmail');
+    }
+
     try {
       await setPersistence(
         auth,
@@ -79,13 +92,21 @@ function Login({ setScreen }) {
     setLoading(false);
   }
 
+  function handleRememberMe() {
+    const newValue = !rememberMe;
+    setRememberMe(newValue);
+    if (!newValue) {
+      localStorage.removeItem('rememberedEmail');
+    }
+  }
+
   return (
     <div className="auth-page">
 
       <div className="auth-logo">
         Tattoo<span>Spot</span>
       </div>
-      <p className="auth-tagline">WHERE ART MEETS SKIN</p>
+      <p className="auth-tagline">WHERE INK MEETS SKIN</p>
 
       <div className="auth-card">
         <h2 className="auth-title">Welcome Back</h2>
@@ -135,7 +156,7 @@ function Login({ setScreen }) {
             fontWeight: '500',
           }}>
             <div
-              onClick={() => setRememberMe(!rememberMe)}
+              onClick={handleRememberMe}
               style={{
                 width: '24px',
                 height: '24px',
