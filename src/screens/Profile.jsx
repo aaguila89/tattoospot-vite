@@ -39,7 +39,7 @@ function Profile({ setScreen, artist }) {
   return (
     <div className="page">
 
-      <NavBar leftButton={
+      <NavBar setScreen={setScreen} leftButton={
         <button className="back-btn" onClick={() => setScreen('discover')}>← Back</button>
       } />
 

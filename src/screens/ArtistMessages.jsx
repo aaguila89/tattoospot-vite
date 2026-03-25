@@ -89,7 +89,7 @@ function ArtistMessages({ setScreen, setSelectedClient }) {
 
   return (
     <div className="page">
-      <NavBar leftButton={
+      <NavBar setScreen={setScreen} leftButton={
         <button className="back-btn" onClick={() => setScreen('dashboard')}>← Back</button>
       } />
 

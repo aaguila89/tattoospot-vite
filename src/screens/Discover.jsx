@@ -56,7 +56,7 @@ function Discover({ setScreen, setSelectedArtist, ClientTabBar }) {
 
   return (
     <div className="page">
-      <NavBar rightButton={
+      <NavBar setScreen={setScreen} rightButton={
         <button className="back-btn" onClick={() => setScreen('splash')}>← Exit</button>
       } />
 

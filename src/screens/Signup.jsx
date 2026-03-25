@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  updateProfile
+  updateProfile,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -17,7 +17,7 @@ function Signup({ setScreen }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSignup() {
-    if (name === '' || email === '' || password === '') {
+    if (!name || !email || !password) {
       setError('Please fill in all fields');
       return;
     }
@@ -34,12 +34,16 @@ function Signup({ setScreen }) {
         name,
         email,
         role,
+        plan: 'free',
+        proActive: false,
         createdAt: new Date().toISOString(),
       });
-      if (role === 'client') {
-        setScreen('client');
+
+      // Artists go to plan selection, clients go straight to discover
+      if (role === 'artist') {
+        setScreen('planSelection');
       } else {
-        setScreen('artistSetup');
+        setScreen('client');
       }
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
@@ -61,12 +65,15 @@ function Signup({ setScreen }) {
         name: result.user.displayName,
         email: result.user.email,
         role,
+        plan: 'free',
+        proActive: false,
         createdAt: new Date().toISOString(),
       });
-      if (role === 'client') {
-        setScreen('client');
+
+      if (role === 'artist') {
+        setScreen('planSelection');
       } else {
-        setScreen('artistSetup');
+        setScreen('client');
       }
     } catch (err) {
       setError('Google sign up failed. Please try again.');
@@ -76,10 +83,7 @@ function Signup({ setScreen }) {
 
   return (
     <div className="auth-page">
-
-      <div className="auth-logo">
-        Tattoo<span>Spot</span>
-      </div>
+      <div className="auth-logo">Tattoo<span>Spot</span></div>
       <p className="auth-tagline">WHERE ART MEETS SKIN</p>
 
       <div className="auth-card">
@@ -101,9 +105,7 @@ function Signup({ setScreen }) {
           </button>
         </div>
 
-        {error !== '' && (
-          <div className="auth-error">{error}</div>
-        )}
+        {error && <div className="auth-error">{error}</div>}
 
         <div className="form-group">
           <label className="form-label">FULL NAME</label>
@@ -151,9 +153,7 @@ function Signup({ setScreen }) {
           {loading ? 'Creating account...' : 'Create Account →'}
         </button>
 
-        <div className="auth-divider">
-          <span>or</span>
-        </div>
+        <div className="auth-divider"><span>or</span></div>
 
         <button
           className="btn btn-google"
@@ -167,7 +167,6 @@ function Signup({ setScreen }) {
           Already have an account?{' '}
           <span onClick={() => setScreen('login')}>Sign In</span>
         </div>
-
       </div>
     </div>
   );

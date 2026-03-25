@@ -1,6 +1,10 @@
 import React from 'react';
+import { auth } from '../firebase';
+import NotificationBell from './notifications/NotificationBell';
 
-function NavBar({ leftButton, rightButton }) {
+function NavBar({ leftButton, rightButton, setScreen }) {
+  const userId = auth.currentUser?.uid;
+
   return (
     <div className="nav">
       <div style={{ width: '60px' }}>
@@ -26,7 +30,13 @@ function NavBar({ leftButton, rightButton }) {
           Where Ink Meets Skin
         </div>
       </div>
-      <div style={{ width: '60px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ width: '60px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+        {userId && setScreen && (
+          <NotificationBell
+            userId={userId}
+            onNavigate={(bookingId) => setScreen('booking')}
+          />
+        )}
         {rightButton}
       </div>
     </div>

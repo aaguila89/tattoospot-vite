@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -17,11 +17,14 @@ import ArtistChat from './screens/ArtistChat.jsx';
 import ArtistBookings from './screens/ArtistBookings.jsx';
 import Login from './screens/Login.jsx';
 import Signup from './screens/Signup.jsx';
+import PlanSelection from './screens/PlanSelection.jsx';
+import ProUpgrade from './screens/ProUpgrade.jsx';
+import SessionGuard from './components/SessionGuard.jsx';
+
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
 
 function App() {
-  const [screen, setScreenState] = useState(
-    sessionStorage.getItem('currentScreen') || 'splash'
-  );
+  const [screen, setScreenState] = useState(sessionStorage.getItem('currentScreen') || 'splash');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedArtist, setSelectedArtistState] = useState(() => {
@@ -34,6 +37,7 @@ function App() {
   });
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(0);
+  const inactivityTimer = useRef(null);
 
   function setScreen(newScreen) {
     sessionStorage.setItem('currentScreen', newScreen);
@@ -42,24 +46,35 @@ function App() {
 
   function setSelectedArtist(artist) {
     setSelectedArtistState(artist);
-    if (artist) {
-      sessionStorage.setItem('selectedArtist', JSON.stringify(artist));
-    } else {
-      sessionStorage.removeItem('selectedArtist');
-    }
+    if (artist) sessionStorage.setItem('selectedArtist', JSON.stringify(artist));
+    else sessionStorage.removeItem('selectedArtist');
   }
 
   function setSelectedClient(client) {
     setSelectedClientState(client);
-    if (client) {
-      sessionStorage.setItem('selectedClient', JSON.stringify(client));
-    } else {
-      sessionStorage.removeItem('selectedClient');
-    }
+    if (client) sessionStorage.setItem('selectedClient', JSON.stringify(client));
+    else sessionStorage.removeItem('selectedClient');
+  }
+
+  function resetInactivityTimer() {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      if (auth.currentUser) handleSignOut();
+    }, INACTIVITY_TIMEOUT);
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    function handleActivity() { if (auth.currentUser) resetInactivityTimer(); }
+    events.forEach(e => window.addEventListener(e, handleActivity));
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, currentUser => {
       setUser(currentUser);
       setLoading(false);
       if (!currentUser) {
@@ -71,13 +86,28 @@ function App() {
         sessionStorage.removeItem('selectedArtist');
         sessionStorage.removeItem('selectedClient');
         setScreenState('splash');
+        if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
       } else {
         loadUnreadCounts(currentUser);
+        resetInactivityTimer();
         const savedScreen = sessionStorage.getItem('currentScreen');
         if (!savedScreen || savedScreen === 'splash' || savedScreen === 'login') {
           getDoc(doc(db, 'users', currentUser.uid)).then(userDoc => {
-            if (userDoc.exists() && userDoc.data().role === 'artist') {
-              setScreen('dashboard');
+            if (userDoc.exists()) {
+              const role = userDoc.data().role;
+              const plan = userDoc.data().plan;
+              const trialStarted = userDoc.data().trialStarted;
+
+              if (role === 'artist') {
+                // New artist who hasn't selected a plan yet
+                if (!trialStarted && (!plan || plan === 'free') && !userDoc.data().proActive) {
+                  setScreen('planSelection');
+                } else {
+                  setScreen('dashboard');
+                }
+              } else {
+                setScreen('discover');
+              }
             } else {
               setScreen('discover');
             }
@@ -92,14 +122,12 @@ function App() {
     try {
       const artistsSnap = await getDocs(collection(db, 'artists'));
       const artists = artistsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
       let unreadCount = 0;
       artists.forEach(artist => {
         const chatId = [currentUser.uid, artist.id].sort().join('_');
         const messagesRef = collection(db, 'chats', chatId, 'messages');
         const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(1));
-
-        onSnapshot(q, async (snapshot) => {
+        onSnapshot(q, async snapshot => {
           if (!snapshot.empty) {
             const lastMsg = snapshot.docs[0].data();
             if (lastMsg.senderId !== currentUser.uid) {
@@ -113,14 +141,10 @@ function App() {
           }
         });
       });
-
       const bookingsSnap = await getDocs(collection(db, 'bookings'));
-      const pending = bookingsSnap.docs
-        .map(d => d.data())
-        .filter(b => b.clientId === currentUser.uid && b.status === 'accepted')
-        .length;
+      const pending = bookingsSnap.docs.map(d => d.data())
+        .filter(b => b.clientId === currentUser.uid && b.status === 'accepted').length;
       setPendingBookings(pending);
-
     } catch (err) {
       console.error('Error loading counts:', err);
     }
@@ -134,6 +158,7 @@ function App() {
     sessionStorage.removeItem('currentScreen');
     sessionStorage.removeItem('selectedArtist');
     sessionStorage.removeItem('selectedClient');
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     signOut(auth);
     setScreenState('splash');
   }
@@ -149,34 +174,19 @@ function App() {
 
   const ClientTabBar = ({ activeTab }) => (
     <div className="tab-bar">
-      <button
-        className={`tab-item ${activeTab === 'discover' ? 'active' : ''}`}
-        onClick={() => setScreen('discover')}
-      >
+      <button className={`tab-item ${activeTab === 'discover' ? 'active' : ''}`} onClick={() => setScreen('discover')}>
         <span className="tab-icon">🔍</span>
         <span className="tab-label">Discover</span>
       </button>
-      <button
-        className={`tab-item ${activeTab === 'messages' ? 'active' : ''}`}
-        onClick={() => setScreen('messages')}
-      >
+      <button className={`tab-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setScreen('messages')}>
         <div style={{ position: 'relative', display: 'inline-block' }}>
           <span className="tab-icon">💬</span>
           {unreadMessages > 0 && (
             <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-6px',
-              background: '#c84b2f',
-              color: 'white',
-              borderRadius: '50%',
-              width: '16px',
-              height: '16px',
-              fontSize: '10px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              position: 'absolute', top: '-4px', right: '-6px',
+              background: '#c84b2f', color: 'white', borderRadius: '50%',
+              width: '16px', height: '16px', fontSize: '10px', fontWeight: '700',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '2px solid white',
             }}>
               {unreadMessages > 9 ? '9+' : unreadMessages}
@@ -185,27 +195,15 @@ function App() {
         </div>
         <span className="tab-label">Messages</span>
       </button>
-      <button
-        className={`tab-item ${activeTab === 'bookings' ? 'active' : ''}`}
-        onClick={() => setScreen('bookings')}
-      >
+      <button className={`tab-item ${activeTab === 'bookings' ? 'active' : ''}`} onClick={() => setScreen('bookings')}>
         <div style={{ position: 'relative', display: 'inline-block' }}>
           <span className="tab-icon">📅</span>
           {pendingBookings > 0 && (
             <div style={{
-              position: 'absolute',
-              top: '-4px',
-              right: '-6px',
-              background: '#c84b2f',
-              color: 'white',
-              borderRadius: '50%',
-              width: '16px',
-              height: '16px',
-              fontSize: '10px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              position: 'absolute', top: '-4px', right: '-6px',
+              background: '#c84b2f', color: 'white', borderRadius: '50%',
+              width: '16px', height: '16px', fontSize: '10px', fontWeight: '700',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '2px solid white',
             }}>
               {pendingBookings > 9 ? '9+' : pendingBookings}
@@ -223,11 +221,11 @@ function App() {
 
   return (
     <div className="app">
+      {user && <SessionGuard userId={user.uid} onSignOut={handleSignOut} />}
+
       {screen === 'splash' && (
         <div className="splash">
-          <div className="splash-logo">
-            Tattoo<span>Spot</span>
-          </div>
+          <div className="splash-logo">Tattoo<span>Spot</span></div>
           <p className="splash-tagline">WHERE INK MEETS SKIN</p>
           <div className="splash-divider"></div>
           <p className="splash-desc">
@@ -247,19 +245,13 @@ function App() {
           </div>
           <div className="auth-switch" style={{ marginTop: '24px' }}>
             New to TattooSpot?{' '}
-            <span
-              style={{ color: '#d4a853', cursor: 'pointer' }}
-              onClick={() => setScreen('signup')}
-            >
+            <span style={{ color: '#d4a853', cursor: 'pointer' }} onClick={() => setScreen('signup')}>
               Create Account
             </span>
           </div>
           {user && (
             <div className="auth-switch" style={{ marginTop: '12px' }}>
-              <span
-                style={{ color: '#8a8580', cursor: 'pointer' }}
-                onClick={handleSignOut}
-              >
+              <span style={{ color: '#8a8580', cursor: 'pointer' }} onClick={handleSignOut}>
                 Sign out
               </span>
             </div>
@@ -269,25 +261,16 @@ function App() {
 
       {screen === 'login' && <Login setScreen={setScreen} />}
       {screen === 'signup' && <Signup setScreen={setScreen} />}
+      {screen === 'planSelection' && <PlanSelection setScreen={setScreen} />}
+      {screen === 'proUpgrade' && <ProUpgrade setScreen={setScreen} />}
       {screen === 'discover' && (
-        <Discover
-          setScreen={setScreen}
-          setSelectedArtist={setSelectedArtist}
-          ClientTabBar={ClientTabBar}
-        />
+        <Discover setScreen={setScreen} setSelectedArtist={setSelectedArtist} ClientTabBar={ClientTabBar} />
       )}
       {screen === 'client' && (
-        <Discover
-          setScreen={setScreen}
-          setSelectedArtist={setSelectedArtist}
-          ClientTabBar={ClientTabBar}
-        />
+        <Discover setScreen={setScreen} setSelectedArtist={setSelectedArtist} ClientTabBar={ClientTabBar} />
       )}
       {screen === 'profile' && (
-        <Profile
-          setScreen={setScreen}
-          artist={selectedArtist}
-        />
+        <Profile setScreen={setScreen} artist={selectedArtist} />
       )}
       {screen === 'booking' && (
         <Booking
@@ -299,11 +282,7 @@ function App() {
       )}
       {screen === 'confirmation' && <Confirmation setScreen={setScreen} />}
       {screen === 'messages' && (
-        <Messages
-          setScreen={setScreen}
-          setSelectedArtist={setSelectedArtist}
-          ClientTabBar={ClientTabBar}
-        />
+        <Messages setScreen={setScreen} setSelectedArtist={setSelectedArtist} ClientTabBar={ClientTabBar} />
       )}
       {screen === 'chat' && (
         <Chat
@@ -315,34 +294,20 @@ function App() {
         />
       )}
       {screen === 'dashboard' && (
-        <ArtistDashboard
-          setScreen={setScreen}
-          handleSignOut={handleSignOut}
-        />
+        <ArtistDashboard setScreen={setScreen} handleSignOut={handleSignOut} />
       )}
       {screen === 'artist' && (
-        <ArtistDashboard
-          setScreen={setScreen}
-          handleSignOut={handleSignOut}
-        />
+        <ArtistDashboard setScreen={setScreen} handleSignOut={handleSignOut} />
       )}
       {screen === 'artistPortfolio' && <ArtistPortfolio setScreen={setScreen} />}
       {screen === 'artistSetup' && <ArtistSetup setScreen={setScreen} />}
       {screen === 'artistMessages' && (
-        <ArtistMessages
-          setScreen={setScreen}
-          setSelectedClient={setSelectedClient}
-        />
+        <ArtistMessages setScreen={setScreen} setSelectedClient={setSelectedClient} />
       )}
       {screen === 'artistChat' && (
-        <ArtistChat
-          setScreen={setScreen}
-          client={selectedClient}
-        />
+        <ArtistChat setScreen={setScreen} client={selectedClient} />
       )}
-      {screen === 'artistBookings' && (
-        <ArtistBookings setScreen={setScreen} />
-      )}
+      {screen === 'artistBookings' && <ArtistBookings setScreen={setScreen} />}
     </div>
   );
 }

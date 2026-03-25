@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { notifyArtistNewBooking } from '../utils/notifications';
 
 const dates = [
   { day: 'THU', num: '20' },
@@ -65,7 +66,7 @@ function Booking({ setScreen, artistId, artistName, artist }) {
     setLoading(true);
     setError('');
     try {
-      await addDoc(collection(db, 'bookings'), {
+      const docRef = await addDoc(collection(db, 'bookings'), {
         clientId: auth.currentUser?.uid,
         clientName: auth.currentUser?.displayName,
         clientEmail: auth.currentUser?.email,
@@ -82,7 +83,13 @@ function Booking({ setScreen, artistId, artistName, artist }) {
         createdAt: new Date().toISOString(),
       });
 
-      // Pass booking details to confirmation
+      // Notify the artist about the new booking request
+      await notifyArtistNewBooking({
+        artistId: artistId,
+        clientName: auth.currentUser?.displayName || 'A client',
+        bookingId: docRef.id,
+      });
+
       sessionStorage.setItem('lastBooking', JSON.stringify({
         artistName: artistName || 'Artist',
         date: `Mar ${selectedDate}`,
