@@ -1,6 +1,10 @@
-// Helper functions to check plan status throughout the app
+// LAUNCH MODE — everything is free until we're ready to charge
+// To enable paid tiers, change LAUNCH_MODE to false
+export const LAUNCH_MODE = true;
 
 export function isPro(userData) {
+  // During launch everyone gets Pro features for free
+  if (LAUNCH_MODE) return true;
   if (!userData) return false;
   if (userData.plan === 'pro') return true;
   if (userData.plan === 'pro_trial') {
@@ -14,6 +18,7 @@ export function isPro(userData) {
 }
 
 export function getTrialDaysLeft(userData) {
+  if (LAUNCH_MODE) return 30;
   if (!userData?.trialEndsAt) return 0;
   const end = userData.trialEndsAt.toDate
     ? userData.trialEndsAt.toDate()
@@ -21,5 +26,5 @@ export function getTrialDaysLeft(userData) {
   return Math.max(0, Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24)));
 }
 
-export const FREE_PHOTO_LIMIT = 10;
-export const FREE_CATEGORY_LIMIT = 1;
+export const FREE_PHOTO_LIMIT = LAUNCH_MODE ? 999 : 10;
+export const FREE_CATEGORY_LIMIT = LAUNCH_MODE ? 999 : 1;
