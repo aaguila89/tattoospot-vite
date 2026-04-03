@@ -1,4 +1,4 @@
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export function generateSessionId() {
@@ -19,14 +19,20 @@ export async function registerSession(userId) {
     loggedInAt: Timestamp.now(),
   });
 
-  sessionStorage.setItem('sessionId', sessionId);
+  // Store session ID in localStorage instead of sessionStorage
+  // so it persists across browser sessions on the same device
+  localStorage.setItem(`sessionId_${userId}`, sessionId);
+
   return sessionId;
 }
 
-export function getLocalSessionId() {
-  return sessionStorage.getItem('sessionId');
+export function getLocalSessionId(userId) {
+  // Check both localStorage (persistent) and sessionStorage (legacy)
+  return localStorage.getItem(`sessionId_${userId}`) 
+    || sessionStorage.getItem('sessionId');
 }
 
-export function clearLocalSession() {
+export function clearLocalSession(userId) {
+  if (userId) localStorage.removeItem(`sessionId_${userId}`);
   sessionStorage.removeItem('sessionId');
 }
