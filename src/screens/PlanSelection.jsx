@@ -98,8 +98,9 @@ export default function PlanSelection({ setScreen }) {
         {loading ? 'Setting up...' : 'Join TattooSpot →'}
       </button>
 
-      <p style={{ textAlign: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', lineHeight: '1.5', margin: 0 }}>
-        No credit card required. Free during our launch period.
+      {/* Fine print */}
+      <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.6', margin: 0 }}>
+        Free for the first 30 days! $12.99 monthly. Cancel anytime.
       </p>
 
     </div>
