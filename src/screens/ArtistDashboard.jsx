@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { notifyClientAccepted, notifyClientDeclined } from '../utils/notifications';
 import { isPro, getTrialDaysLeft } from '../utils/planUtils';
 
@@ -21,27 +21,31 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
   const user = auth.currentUser;
 
+  // Real-time listener for artist data
   useEffect(() => {
     if (!user) return;
-    async function loadData() {
-      try {
-        const artistSnap = await getDoc(doc(db, 'artists', user.uid));
-        if (artistSnap.exists()) {
-          const data = artistSnap.data();
-          setArtistData(data);
-          setAvailability(data.available !== false);
-          setEditRate(data.rate || '');
-          setEditBio(data.bio || '');
-        }
-        const userSnap = await getDoc(doc(db, 'users', user.uid));
-        if (userSnap.exists()) setUserData(userSnap.data());
-      } catch (err) {
-        console.error('Error loading artist:', err);
+    const unsubscribe = onSnapshot(doc(db, 'artists', user.uid), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setArtistData(data);
+        setAvailability(data.available !== false);
+        setEditRate(data.rate || '');
+        setEditBio(data.bio || '');
       }
-    }
-    loadData();
+    });
+    return () => unsubscribe();
   }, [user]);
 
+  // Real-time listener for user/plan data
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+      if (snap.exists()) setUserData(snap.data());
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Pending bookings
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -56,6 +60,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
     return () => unsubscribe();
   }, [user]);
 
+  // All bookings
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'bookings'), where('artistId', '==', user.uid));
@@ -74,8 +79,9 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
     ? Math.round(((accepted.length + declined.length) / allBookings.length) * 100)
     : 0;
 
-  const proActive = isPro(userData);
-  const trialDays = getTrialDaysLeft(userData);
+  // Wait for userData to load before checking plan
+  const proActive = userData ? isPro(userData) : false;
+  const trialDays = userData ? getTrialDaysLeft(userData) : 0;
 
   async function handleAccept(request) {
     try {
@@ -117,7 +123,6 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
     setSaving(true);
     try {
       await updateDoc(doc(db, 'artists', user.uid), { rate: editRate, bio: editBio });
-      setArtistData(prev => ({ ...prev, rate: editRate, bio: editBio }));
       setEditMode(false);
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -169,11 +174,8 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
               {proActive && (
                 <span style={{
                   background: 'linear-gradient(135deg, #c84b2f, #d4a853)',
-                  color: 'white',
-                  fontSize: '10px',
-                  fontWeight: '800',
-                  padding: '2px 8px',
-                  borderRadius: '20px',
+                  color: 'white', fontSize: '10px', fontWeight: '800',
+                  padding: '2px 8px', borderRadius: '20px',
                 }}>
                   ✓ PRO
                 </span>
@@ -212,14 +214,9 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
             style={{
               background: 'rgba(200,75,47,0.15)',
               border: '1px solid rgba(200,75,47,0.4)',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              marginTop: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
+              borderRadius: '10px', padding: '10px 14px', marginTop: '12px',
+              cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', width: '100%',
             }}
           >
             <div>
@@ -240,26 +237,18 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
             onClick={() => setScreen('proUpgrade')}
             style={{
               background: 'linear-gradient(135deg, rgba(26,10,0,0.8), rgba(61,21,0,0.8))',
-              border: '1px solid #c84b2f40',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              marginTop: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
+              border: '1px solid #c84b2f40', borderRadius: '10px',
+              padding: '10px 14px', marginTop: '12px', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%',
             }}
           >
             <div>
-              <div style={{ color: 'white', fontWeight: '700', fontSize: '13px' }}>
-                ⚡ Upgrade to Pro
-              </div>
+              <div style={{ color: 'white', fontWeight: '700', fontSize: '13px' }}>⚡ Upgrade to Pro</div>
               <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>
                 Get featured, unlimited photos & more
               </div>
             </div>
-            <span style={{ color: '#d4a853', fontSize: '13px', fontWeight: '700' }}>$19/mo →</span>
+            <span style={{ color: '#d4a853', fontSize: '13px', fontWeight: '700' }}>$12.99/mo →</span>
           </div>
         )}
 
@@ -286,7 +275,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
 
       {/* TABS */}
       <div style={{
-        display: 'flex', background: '#f5f0e8', borderRadius: '10px',
+        display: 'flex', background: '#1a1a1a', borderRadius: '10px',
         padding: '4px', margin: '16px 16px 0', gap: '4px',
       }}>
         {[
@@ -299,11 +288,11 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
             onClick={() => setActiveTab(tab.key)}
             style={{
               flex: 1, padding: '8px 4px', borderRadius: '7px', border: 'none',
-              background: activeTab === tab.key ? 'white' : 'transparent',
-              color: activeTab === tab.key ? '#0a0a0a' : '#8a8580',
+              background: activeTab === tab.key ? '#2a2a2a' : 'transparent',
+              color: activeTab === tab.key ? '#f5f0e8' : '#8a8580',
               fontWeight: activeTab === tab.key ? '600' : '400',
               fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: activeTab === tab.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+              boxShadow: activeTab === tab.key ? '0 1px 4px rgba(0,0,0,0.3)' : 'none',
               transition: 'all 0.2s',
             }}
           >
@@ -354,7 +343,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
                   {request.description && <div style={{ marginTop: '6px' }}>{request.description}</div>}
                 </div>
                 <div style={{
-                  background: '#f5f0e8', borderRadius: '8px', padding: '8px 12px',
+                  background: '#1a1a1a', borderRadius: '8px', padding: '8px 12px',
                   fontSize: '13px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between',
                 }}>
                   <span style={{ color: '#8a8580' }}>Deposit offered</span>
@@ -420,8 +409,8 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
                 <div key={day.toISOString()} style={{ display: 'flex', gap: '12px', marginBottom: '12px', opacity: dayBookings.length === 0 ? 0.4 : 1 }}>
                   <div style={{
                     minWidth: '48px', textAlign: 'center', padding: '8px 4px',
-                    background: isToday ? '#c84b2f' : '#f5f0e8', borderRadius: '8px',
-                    color: isToday ? 'white' : '#0a0a0a',
+                    background: isToday ? '#c84b2f' : '#1a1a1a', borderRadius: '8px',
+                    color: isToday ? 'white' : '#f5f0e8',
                   }}>
                     <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase' }}>
                       {day.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -430,17 +419,17 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
                   </div>
                   <div style={{ flex: 1 }}>
                     {dayBookings.length === 0 ? (
-                      <div style={{ background: '#f5f0e8', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#8a8580' }}>
+                      <div style={{ background: '#1a1a1a', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#8a8580' }}>
                         No bookings
                       </div>
                     ) : dayBookings.map(b => (
                       <div key={b.id} style={{
-                        background: b.status === 'confirmed' ? '#f0fdf4' : '#eff6ff',
-                        border: `1px solid ${b.status === 'confirmed' ? '#bbf7d0' : '#bfdbfe'}`,
+                        background: b.status === 'confirmed' ? '#052e16' : '#0f172a',
+                        border: `1px solid ${b.status === 'confirmed' ? '#166534' : '#1e3a5f'}`,
                         borderRadius: '8px', padding: '10px 12px', marginBottom: '6px',
                       }}>
-                        <div style={{ fontWeight: '700', fontSize: '14px' }}>{b.clientName}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                        <div style={{ fontWeight: '700', fontSize: '14px', color: '#f5f0e8' }}>{b.clientName}</div>
+                        <div style={{ fontSize: '12px', color: '#8a8580', marginTop: '2px' }}>
                           {b.time} · {b.style} · {b.duration}
                         </div>
                       </div>
@@ -465,7 +454,7 @@ function ArtistDashboard({ setScreen, handleSignOut: parentSignOut }) {
                 <div style={{ fontSize: '40px' }}>🎨</div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontWeight: '700', fontSize: '18px' }}>{user?.displayName}</div>
+                    <div style={{ fontWeight: '700', fontSize: '18px', color: '#f5f0e8' }}>{user?.displayName}</div>
                     {proActive && (
                       <span style={{
                         background: 'linear-gradient(135deg, #c84b2f, #d4a853)',
