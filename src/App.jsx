@@ -92,26 +92,30 @@ function App() {
         resetInactivityTimer();
         const savedScreen = sessionStorage.getItem('currentScreen');
         if (!savedScreen || savedScreen === 'splash' || savedScreen === 'login') {
-          getDoc(doc(db, 'users', currentUser.uid)).then(userDoc => {
-            if (userDoc.exists()) {
-              const role = userDoc.data().role;
-              const plan = userDoc.data().plan;
-              const trialStarted = userDoc.data().trialStarted;
+          // Wait 500ms for Signup.jsx to finish writing to Firestore
+          setTimeout(() => {
+            getDoc(doc(db, 'users', currentUser.uid)).then(userDoc => {
+              if (userDoc.exists()) {
+                const data = userDoc.data();
+                const role = data.role;
+                const plan = data.plan;
+                const trialStarted = data.trialStarted;
+                const proActive = data.proActive;
 
-              if (role === 'artist') {
-                // New artist who hasn't selected a plan yet
-                if (!trialStarted && (!plan || plan === 'free') && !userDoc.data().proActive) {
-                  setScreen('planSelection');
+                if (role === 'artist') {
+                  if (!trialStarted && (!plan || plan === 'free') && !proActive) {
+                    setScreen('planSelection');
+                  } else {
+                    setScreen('dashboard');
+                  }
                 } else {
-                  setScreen('dashboard');
+                  setScreen('discover');
                 }
               } else {
                 setScreen('discover');
               }
-            } else {
-              setScreen('discover');
-            }
-          });
+            });
+          }, 500);
         }
       }
     });
